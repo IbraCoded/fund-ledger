@@ -1,0 +1,17 @@
+.git
+.venv
+.env
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+htmlcov
+loadtest/results*
+*.sqlite3
+build/
+dist/
+wheels/
+*.egg-info
+tmp/
+personal/
+.coverage

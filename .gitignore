@@ -1,27 +1,30 @@
-# Python-generated files
+# Python
 __pycache__/
-*.py[oc]
-*.pyc
+*.py[cod]
 build/
 dist/
 wheels/
 *.egg-info
 
-
-.env
-*.sqlite3
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-htmlcov/
-.coverage
-
-# Virtual environments
+# Virtualenv
 .venv/
-ruff_cache/
-.coverage
-htmlcov/
-loadtest/results*
+
+# Secrets
+.env
+
+# Local data
+*.sqlite3
 tmp/
 personal/
 
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Load tests
+loadtest/results*
