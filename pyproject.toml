@@ -1,0 +1,72 @@
+[project]
+name = "fund-ledger"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.20.0",
+    "asyncpg>=0.31.0",
+    "django>=5.2,<5.3",
+    "django-environ>=0.14.0",
+    "djangorestframework>=3.16",
+    "fastapi>=0.141.1",
+    "gunicorn>=26.2.0",
+    "httpx>=0.28.1",
+    "hypothesis>=6.168.1",
+    "prometheus-client>=0.26.0",
+    "psycopg2-binary>=2.9.13",
+    "psycopg[binary]>=3.2",
+    "pydantic-settings>=2.15.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "sqlalchemy[asyncio]>=2.0.54",
+    "structlog>=26.1.0",
+    "testcontainers>=4.15.0",
+    "uvicorn[standard]>=0.53.0",
+]
+
+[dependency-groups]
+dev = [
+    "django-stubs[compatible-mypy]>=6.1.1",
+    "djangorestframework-stubs>=3.18.1",
+    "hypothesis>=6.168.1",
+    "mypy>=2.3.1",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-django>=4.14.0",
+    "ruff>=0.16.8",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "DJ", "SIM"]
+ignore = ["E501", "DJ008"]   # formatter owns line length; __str__ not required on every model
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+ignore_missing_imports = true
+check_untyped_defs = true
+exclude = ["migrations/", "loadtest/"]
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
+[tool.coverage.run]
+branch = true
+source = ["funds", "ledger", "operations", "api", "observability"]
+omit = ["*/migrations/*", "*/apps.py"]
+
+[tool.coverage.report]
+show_missing = true
