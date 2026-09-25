@@ -1,5 +1,5 @@
 from django.db import DatabaseError, connection
-from django.http import JsonResponse, HttpRequest
+from django.http import HttpRequest, JsonResponse
 
 
 def healthz(request: HttpRequest) -> JsonResponse:
