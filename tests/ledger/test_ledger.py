@@ -21,7 +21,7 @@ def _transfer(world, key="t-1", **kwargs):
         {"amount": D("0"), "base_amount": D("0")},
         {"amount": D("-5"), "base_amount": D("5")},
         {"base_amount": D("0")},
-        {"direction": "SIDEWAYS"},
+        {"direction": "SIDE"},
     ],
 )
 def test_entry_row_checks(world, overrides):
