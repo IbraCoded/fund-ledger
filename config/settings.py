@@ -24,8 +24,9 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "rest_framework",
     "funds",
-    "observability",
+    "ledger",
     "operations",
+    "observability",
 ]
 
 MIDDLEWARE = [
