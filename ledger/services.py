@@ -99,17 +99,22 @@ def validate_legs(legs: Sequence[Leg]) -> None:
 
 
 def _lock_accounts(legs: Sequence[Leg]) -> dict[UUID, Account]:
-    # lock each account in the order the caller listed the legs.
-    # Fixes the overdraft race. Introduces a deadlock (see test_opposing_transfers...).
-    accounts: dict[UUID, Account] = {}
-    for leg in legs:
-        if leg.account_id in accounts:
-            continue
-        try:
-            accounts[leg.account_id] = Account.objects.select_for_update().get(id=leg.account_id)
-        except Account.DoesNotExist:
-            raise UnknownAccount(f"unknown account {leg.account_id}") from None
-    return accounts
+    """Lock every account the transfer touches, in ascending primary-key order.
+
+    The lock is a mutex over "the entries of this account": we never update the row.
+    Holding it while we read balances and insert entries makes the overdraft check and
+    the write atomic with respect to every other transfer touching the same account.
+
+    ORDER BY id gives every transaction in the system the same global lock order,
+    which makes a deadlock cycle impossible. list() forces the query to run, which is
+    when the locks are actually taken.
+    """
+    ids = {leg.account_id for leg in legs}
+    locked = list(Account.objects.select_for_update().filter(id__in=ids).order_by("id"))
+    if len(locked) != len(ids):
+        missing = sorted(str(i) for i in ids - {a.id for a in locked})
+        raise UnknownAccount(f"unknown account(s): {missing}")
+    return {a.id: a for a in locked}
 
 
 
