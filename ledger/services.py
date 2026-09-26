@@ -117,7 +117,6 @@ def _lock_accounts(legs: Sequence[Leg]) -> dict[UUID, Account]:
     return {a.id: a for a in locked}
 
 
-
 def _validate_context(period: Period, accounts: dict[UUID, Account]) -> None:
     # A friendly early error. The guarantee is the period trigger (Step 9).
     if period.status != PeriodStatus.OPEN:

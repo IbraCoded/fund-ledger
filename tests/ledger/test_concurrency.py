@@ -3,8 +3,8 @@ import random
 from decimal import Decimal as D
 
 import pytest
-
 from django.db import OperationalError
+
 from ledger.errors import InsufficientFunds
 from ledger.queries import native_balance
 from ledger.reconciliation import total_imbalance
