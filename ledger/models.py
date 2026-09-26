@@ -64,9 +64,9 @@ class Account(models.Model):
                     | (~Q(account_type="LP_CAPITAL") & Q(owner_lp__isnull=True))
                 ),
                 name="account_owner_lp_iff_lp_capital",
-            ),            
+            ),
             models.UniqueConstraint(fields=["fund", "code"], name="account_code_unique_per_fund"),
-                        models.UniqueConstraint(
+            models.UniqueConstraint(
                 fields=["fund", "owner_lp", "currency"],
                 condition=Q(account_type="LP_CAPITAL"),
                 name="account_one_lp_capital_per_lp_currency",

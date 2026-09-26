@@ -11,10 +11,16 @@ pytestmark = pytest.mark.django_db
 
 
 def _unbalanced(world):
-    t = Transfer.objects.create(idempotency_key="u", transfer_type="ADJUSTMENT", period=world.period)
+    t = Transfer.objects.create(
+        idempotency_key="u", transfer_type="ADJUSTMENT", period=world.period
+    )
     Entry.objects.create(
-        transfer=t, account=world.cash, direction="DEBIT",
-        amount=D("5"), currency="GBP", base_amount=D("5"),
+        transfer=t,
+        account=world.cash,
+        direction="DEBIT",
+        amount=D("5"),
+        currency="GBP",
+        base_amount=D("5"),
     )
 
 

@@ -34,12 +34,20 @@ def test_entry_row_checks(world, overrides):
 def test_signed_columns_are_generated_by_the_database(world):
     t = _transfer(world)
     Entry.objects.create(
-        transfer=t, account=world.cash, direction="DEBIT",
-        amount=D("7"), currency="GBP", base_amount=D("7"),
+        transfer=t,
+        account=world.cash,
+        direction="DEBIT",
+        amount=D("7"),
+        currency="GBP",
+        base_amount=D("7"),
     )
     Entry.objects.create(
-        transfer=t, account=world.equity, direction="CREDIT",
-        amount=D("7"), currency="GBP", base_amount=D("7"),
+        transfer=t,
+        account=world.equity,
+        direction="CREDIT",
+        amount=D("7"),
+        currency="GBP",
+        base_amount=D("7"),
     )
     signed = dict(t.entries.values_list("direction", "signed_amount"))
     assert signed == {"DEBIT": D("7"), "CREDIT": D("-7")}
