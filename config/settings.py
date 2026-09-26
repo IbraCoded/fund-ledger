@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "funds",
     "observability",
+    "operations",
 ]
 
 MIDDLEWARE = [
