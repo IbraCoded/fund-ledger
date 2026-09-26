@@ -99,13 +99,18 @@ def validate_legs(legs: Sequence[Leg]) -> None:
 
 
 def _lock_accounts(legs: Sequence[Leg]) -> dict[UUID, Account]:
-    # Step 4: NO LOCKING. Step 5 shows why that's wrong.
-    ids = {leg.account_id for leg in legs}
-    accounts = Account.objects.in_bulk(ids)
-    if len(accounts) != len(ids):
-        missing = sorted(str(i) for i in ids - set(accounts))
-        raise UnknownAccount(f"unknown account(s): {missing}")
+    # lock each account in the order the caller listed the legs.
+    # Fixes the overdraft race. Introduces a deadlock (see test_opposing_transfers...).
+    accounts: dict[UUID, Account] = {}
+    for leg in legs:
+        if leg.account_id in accounts:
+            continue
+        try:
+            accounts[leg.account_id] = Account.objects.select_for_update().get(id=leg.account_id)
+        except Account.DoesNotExist:
+            raise UnknownAccount(f"unknown account {leg.account_id}") from None
     return accounts
+
 
 
 def _validate_context(period: Period, accounts: dict[UUID, Account]) -> None:
