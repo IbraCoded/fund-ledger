@@ -1,9 +1,16 @@
 import uuid
+from typing import TypedDict
 
 from django.db import models
 from django.db.models import F, Q
 
-MONEY = {"max_digits": 20, "decimal_places": 4}
+
+class MoneyKwargs(TypedDict):
+    max_digits: int
+    decimal_places: int
+
+
+MONEY: MoneyKwargs = {"max_digits": 20, "decimal_places": 4}
 ISO_4217 = r"^[A-Z]{3}$"
 
 

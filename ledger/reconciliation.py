@@ -12,9 +12,10 @@ from uuid import UUID
 from django.db import connection
 
 SIGNED = "CASE WHEN e.direction = 'DEBIT' THEN e.base_amount ELSE -e.base_amount END"
+SqlParam = datetime | UUID | int
 
 
-def _scalar(sql: str, params: list[object]) -> Decimal:
+def _scalar(sql: str, params: list[SqlParam]) -> Decimal:
     with connection.cursor() as cursor:
         cursor.execute(sql, params)
         (value,) = cursor.fetchone()
@@ -24,7 +25,7 @@ def _scalar(sql: str, params: list[object]) -> Decimal:
 def total_imbalance(*, as_of: datetime | None = None) -> Decimal:
     """System-wide sum of signed base amounts. The north star: must always be 0."""
     sql = f"SELECT COALESCE(SUM({SIGNED}), 0) FROM ledger_entry e"
-    params: list[object] = []
+    params: list[SqlParam] = []
     if as_of is not None:
         sql += " WHERE e.created_at <= %s"
         params.append(as_of)

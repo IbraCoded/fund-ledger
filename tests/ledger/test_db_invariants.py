@@ -1,5 +1,6 @@
 from decimal import Decimal as D
 
+import psycopg
 import pytest
 from django.db import IntegrityError, transaction
 
@@ -45,7 +46,9 @@ def test_unbalanced_transfer_is_rejected_at_commit(world):
 def test_imbalance_error_names_the_constraint(world):
     with pytest.raises(IntegrityError) as caught, transaction.atomic():
         _entry(_transfer(world), world.cash, "DEBIT", D("1"))
-    assert caught.value.__cause__.diag.constraint_name == "transfer_balanced"
+    cause = caught.value.__cause__
+    assert isinstance(cause, psycopg.Error)
+    assert cause.diag.constraint_name == "transfer_balanced"
 
 
 @pytest.fixture

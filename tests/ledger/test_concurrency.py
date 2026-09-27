@@ -15,7 +15,6 @@ from tests.factories import fund_accounts, make_account, two_legs
 pytestmark = pytest.mark.django_db(transaction=True)
 
 
-@pytest.mark.xfail(reason="no locking yet: concurrent overdraft race (fixed in 5.2)", strict=False)
 def test_no_account_goes_negative_under_concurrent_load(world):
     accounts = [make_account(world.fund) for _ in range(10)]
     # Low balances on purpose: accounts must hover near zero for the race to be observable.
@@ -42,7 +41,6 @@ def test_no_account_goes_negative_under_concurrent_load(world):
     assert {code: b for code, b in balances.items() if b < 0} == {}
 
 
-@pytest.mark.xfail(reason="locks taken in leg order deadlock (fixed in 5.3)", strict=False)
 def test_opposing_transfers_do_not_deadlock(world):
     a, b = make_account(world.fund), make_account(world.fund)
     fund_accounts(world.period, world.equity, [a, b], D("1000000"))

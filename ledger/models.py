@@ -4,7 +4,8 @@ from django.db import models
 from django.db.models import Case, F, Q, Value, When
 from django.db.models.functions import Now
 
-MONEY = {"max_digits": 20, "decimal_places": 4}
+from funds.models import MONEY
+
 ISO_4217 = r"^[A-Z]{3}$"
 
 
