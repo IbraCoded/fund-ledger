@@ -18,6 +18,7 @@ from ledger.errors import (
     UnbalancedTransfer,
     UnknownAccount,
 )
+from ledger.idempotency import money_str, request_fingerprint, run_idempotent
 from ledger.legs import Leg, PricedLeg
 from ledger.models import NON_NEGATIVE_TYPES, Account, Direction, Entry, Transfer
 from ledger.pricing import price_legs
@@ -159,3 +160,39 @@ def _fire_deferred_balance_check() -> None:
     with connection.cursor() as cursor:
         cursor.execute("SET CONSTRAINTS entry_balance_check IMMEDIATE")
         cursor.execute("SET CONSTRAINTS entry_balance_check DEFERRED")
+        
+
+def post_transfer_idempotent(
+    *,
+    idempotency_key: str,
+    legs: Sequence[Leg],
+    period: Period,
+    transfer_type: str,
+    description: str = "",
+    created_by: str = "",
+    fx_date: date | None = None,
+) -> tuple[Transfer, bool]:
+    validate_legs(legs)  # before fingerprinting: money_str needs real Decimals
+    request_hash = request_fingerprint(
+        kind="transfer",
+        transfer_type=str(transfer_type),
+        period=str(period.id),
+        legs=sorted([str(leg.account_id), str(leg.direction), money_str(leg.amount)] for leg in legs),
+    )
+    return run_idempotent(
+        idempotency_key=idempotency_key,
+        request_hash=request_hash,
+        transfer_type=str(transfer_type),
+        create=lambda: post_transfer(
+            idempotency_key=idempotency_key,
+            legs=legs,
+            period=period,
+            transfer_type=transfer_type,
+            description=description,
+            request_hash=request_hash,
+            created_by=created_by,
+            fx_date=fx_date,
+        ),
+        replay=lambda existing: existing,
+    )
+
