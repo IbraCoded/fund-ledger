@@ -160,7 +160,7 @@ def _fire_deferred_balance_check() -> None:
     with connection.cursor() as cursor:
         cursor.execute("SET CONSTRAINTS entry_balance_check IMMEDIATE")
         cursor.execute("SET CONSTRAINTS entry_balance_check DEFERRED")
-        
+
 
 def post_transfer_idempotent(
     *,
@@ -177,7 +177,9 @@ def post_transfer_idempotent(
         kind="transfer",
         transfer_type=str(transfer_type),
         period=str(period.id),
-        legs=sorted([str(leg.account_id), str(leg.direction), money_str(leg.amount)] for leg in legs),
+        legs=sorted(
+            [str(leg.account_id), str(leg.direction), money_str(leg.amount)] for leg in legs
+        ),
     )
     return run_idempotent(
         idempotency_key=idempotency_key,
@@ -195,4 +197,3 @@ def post_transfer_idempotent(
         ),
         replay=lambda existing: existing,
     )
-

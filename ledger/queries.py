@@ -2,7 +2,8 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from django.db.models import QuerySet, Sum
+from django.db.models import F, QuerySet, Sum
+from django.db.models.functions import Coalesce
 
 from ledger.models import Entry
 
@@ -27,3 +28,8 @@ def native_balance(account_id: UUID, *, as_of: datetime | None = None) -> Decima
 def base_balance(account_id: UUID, *, as_of: datetime | None = None) -> Decimal:
     """Balance in the fund's base currency, at the rates captured when each entry was booked."""
     return _entries(account_id, as_of).aggregate(t=Sum("signed_base_amount"))["t"] or ZERO
+
+
+# A reversal counts as whatever kind of transfer it reverses. Reporting uses this so
+# that "reverse capital call #3" reduces contributions rather than appearing as noise.
+EFFECTIVE_TYPE = Coalesce(F("transfer__reverses__transfer_type"), F("transfer__transfer_type"))

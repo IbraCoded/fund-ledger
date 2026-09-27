@@ -1,13 +1,15 @@
 from datetime import date
 from decimal import Decimal
 from itertools import count
+from types import SimpleNamespace
 
 from django.utils import timezone
 
-from funds.models import Fund, LimitedPartner, Period
+from funds.models import Commitment, Fund, LimitedPartner, Period
 from ledger.legs import Leg
 from ledger.models import Account, AccountType
 from ledger.services import post_transfer
+from operations.chart import open_fund_accounts
 
 # A simple counter to generate unique names for test objects.
 _seq = count(1)
@@ -75,3 +77,36 @@ def fund_accounts(
             period=period,
             transfer_type="ADJUSTMENT",
         )
+
+
+AWKWARD_COMMITMENTS = [
+    Decimal(x)
+    for x in (
+        "47300000",
+        "12125000",
+        "33333333.33",
+        "5000000",
+        "8750000",
+        "21000000",
+        "1000000",
+        "15500000",
+        "9999999.99",
+        "2750000",
+    )
+]
+
+
+def build_pe_fund(commitments: list[Decimal] = AWKWARD_COMMITMENTS) -> SimpleNamespace:
+    """A fund with LPs, commitments, two half-year periods and a full chart of accounts."""
+    fund = make_fund()
+    lps = []
+    for amount in commitments:
+        lp = make_lp()
+        Commitment.objects.create(
+            fund=fund, lp=lp, committed_amount=amount, signed_date=date(2025, 12, 1)
+        )
+        lps.append(lp)
+    h1 = make_period(fund, start=date(2026, 1, 1), end=date(2026, 6, 30))
+    h2 = make_period(fund, start=date(2026, 7, 1), end=date(2026, 12, 31))
+    open_fund_accounts(fund)
+    return SimpleNamespace(fund=fund, lps=lps, h1=h1, h2=h2)

@@ -7,6 +7,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from funds.models import Commitment, Fund, FxRate, LimitedPartner, Period
+from operations.chart import open_fund_accounts
 
 DEMO_NS = uuid.UUID("6f1c6a8e-3b7d-4c55-9a0e-2f4f7b1d9c10")
 
@@ -42,6 +43,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         fund = self.reference_data()
+        open_fund_accounts(fund)
         self.stdout.write(self.style.SUCCESS(f"Demo fund ready: {fund.name} ({fund.id})"))
 
     @transaction.atomic

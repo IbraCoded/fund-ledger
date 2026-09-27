@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from ledger.models import AccountType
-from tests.factories import make_account, make_fund, make_period
+from tests.factories import build_pe_fund, make_account, make_fund, make_period
 
 
 @pytest.fixture
@@ -20,3 +20,8 @@ def world():
         cash=make_account(fund),
         equity=make_account(fund, account_type=AccountType.GP_CAPITAL),
     )
+
+
+@pytest.fixture
+def pe():
+    return build_pe_fund()
