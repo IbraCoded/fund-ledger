@@ -3,7 +3,6 @@ from io import StringIO
 
 import pytest
 from django.core.management import CommandError, call_command
-from rest_framework.test import APIClient
 
 from ledger.services import post_transfer
 from tests.factories import two_legs
@@ -38,8 +37,10 @@ def test_reconcile_rejects_a_bad_timestamp():
         call_command("reconcile", "--as-of", "last tuesday")
 
 
-def test_reconciliation_endpoint(world):
-    body = APIClient().get(f"/api/v1/funds/{world.fund.id}/reconciliation/").json()
+def test_reconciliation_endpoint(world, api_for):
+    body = (
+        api_for(world.fund, "VIEWER").get(f"/api/v1/funds/{world.fund.id}/reconciliation/").json()
+    )
     assert body == {
         "fund": str(world.fund.id),
         "balanced": True,

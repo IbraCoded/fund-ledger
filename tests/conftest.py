@@ -1,8 +1,13 @@
+from itertools import count
 from types import SimpleNamespace
 
 import pytest
 import structlog
+from django.contrib.auth.models import User
+from rest_framework.test import APIClient
 
+from access.keys import issue_key
+from access.models import FundMembership
 from ledger.models import AccountType
 from tests.factories import build_pe_fund, make_account, make_fund, make_period
 
@@ -28,3 +33,23 @@ def world():
 @pytest.fixture
 def pe():
     return build_pe_fund()
+
+
+@pytest.fixture
+def api_for(db):
+    """Factory: an APIClient authenticated as a fresh user holding `role` on `fund`.
+
+    The client carries the user as `client.user` so tests can assert attribution.
+    """
+    usernames = count(1)
+
+    def make(fund, role, *, lp=None):
+        user = User.objects.create_user(username=f"{role.lower()}-{next(usernames)}")
+        FundMembership.objects.create(user=user, fund=fund, role=role, lp=lp)
+        _, raw = issue_key(user, name="test")
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {raw}")
+        client.user = user  # type: ignore[attr-defined]  # handle for assertions in tests
+        return client
+
+    return make

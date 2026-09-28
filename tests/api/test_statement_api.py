@@ -2,14 +2,13 @@ from datetime import date
 from decimal import Decimal as D
 
 import pytest
-from rest_framework.test import APIClient
 
 from operations.services import create_capital_call
 
 pytestmark = pytest.mark.django_db
 
 
-def test_statement_as_json_and_csv(pe):
+def test_statement_as_json_and_csv(pe, api_for):
     create_capital_call(
         fund_id=pe.fund.id,
         idempotency_key="c",
@@ -17,7 +16,7 @@ def test_statement_as_json_and_csv(pe):
         notice_date=date(2026, 2, 1),
         due_date=date(2026, 2, 1),
     )
-    api = APIClient()
+    api = api_for(pe.fund, "VIEWER")
     url = f"/api/v1/funds/{pe.fund.id}/lps/{pe.lps[0].id}/statement/?period={pe.h1.id}"
 
     body = api.get(url).json()
@@ -29,6 +28,6 @@ def test_statement_as_json_and_csv(pe):
     assert "closing_balance," in csv_response.content.decode()
 
 
-def test_statement_requires_a_period(pe):
+def test_statement_requires_a_period(pe, api_for):
     url = f"/api/v1/funds/{pe.fund.id}/lps/{pe.lps[0].id}/statement/"
-    assert APIClient().get(url).status_code == 400
+    assert api_for(pe.fund, "VIEWER").get(url).status_code == 400

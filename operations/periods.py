@@ -18,7 +18,7 @@ def period_for(fund: Fund, on_date: date) -> Period:
     return period
 
 
-def close_period(*, fund_id: UUID, period_id: UUID) -> tuple[Period, bool]:
+def close_period(*, fund_id: UUID, period_id: UUID, closed_by: str = "") -> tuple[Period, bool]:
     """Close a period. Returns (period, changed). Closing a closed period is a no-op."""
     with transaction.atomic():
         # FOR UPDATE waits for every in-flight posting holding FOR SHARE on this row.
@@ -34,5 +34,6 @@ def close_period(*, fund_id: UUID, period_id: UUID) -> tuple[Period, bool]:
             raise PeriodNotClosable(f"period does not reconcile (imbalance {imbalance})")
         period.status = PeriodStatus.CLOSED
         period.closed_at = timezone.now()
-        period.save(update_fields=["status", "closed_at"])
+        period.closed_by = closed_by
+        period.save(update_fields=["status", "closed_at", "closed_by"])
     return period, True

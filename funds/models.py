@@ -84,6 +84,7 @@ class Period(models.Model):
     end_date = models.DateField()
     status = models.CharField(max_length=6, choices=PeriodStatus.choices, default=PeriodStatus.OPEN)
     closed_at = models.DateTimeField(null=True, blank=True)
+    closed_by = models.CharField(max_length=150, blank=True, default="")
 
     class Meta:
         ordering = ["fund", "start_date"]

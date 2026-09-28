@@ -1,5 +1,4 @@
 import pytest
-from rest_framework.test import APIClient
 
 from operations.models import Distribution
 
@@ -10,8 +9,8 @@ BODY = {"total_amount": "250000.00", "payment_date": "2026-08-01", "classificati
 
 
 @pytest.fixture
-def api():
-    return APIClient()
+def api(api_for, pe):
+    return api_for(pe.fund, "OPERATOR")
 
 
 def _url(pe, resource):

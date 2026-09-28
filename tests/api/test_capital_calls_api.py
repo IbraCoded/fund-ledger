@@ -1,7 +1,6 @@
 from decimal import Decimal as D
 
 import pytest
-from rest_framework.test import APIClient
 
 from ledger.models import AccountType
 from operations.chart import get_account
@@ -13,8 +12,8 @@ BODY = {"total_amount": "250000.00", "notice_date": "2026-03-01", "due_date": "2
 
 
 @pytest.fixture
-def api():
-    return APIClient()
+def api(api_for, pe):
+    return api_for(pe.fund, "OPERATOR")
 
 
 def _url(pe):
