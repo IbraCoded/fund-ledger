@@ -30,8 +30,11 @@ class Movement:
     @property
     def net(self) -> Decimal:
         return (
-            self.contributions - self.distributions + self.other
-            + self.allocated_gains - self.allocated_fees
+            self.contributions
+            - self.distributions
+            + self.other
+            + self.allocated_gains
+            - self.allocated_fees
         )
 
 
@@ -56,7 +59,9 @@ class CapitalAccountStatement:
 
     def as_dict(self) -> dict[str, str]:
         """Strings throughout: Decimals must never be serialised as floats."""
-        return {k: format(v, "f") if isinstance(v, Decimal) else str(v) for k, v in asdict(self).items()}
+        return {
+            k: format(v, "f") if isinstance(v, Decimal) else str(v) for k, v in asdict(self).items()
+        }
 
 
 def _lp_ledger_movement(lp_account: Account, period: Period) -> Movement:
@@ -96,7 +101,9 @@ def lp_statement(*, fund: Fund, lp: LimitedPartner, period: Period) -> CapitalAc
     opening = ZERO
     contributed_to_date = ZERO
     current = Movement()
-    for p in Period.objects.filter(fund=fund, start_date__lte=period.start_date).order_by("start_date"):
+    for p in Period.objects.filter(fund=fund, start_date__lte=period.start_date).order_by(
+        "start_date"
+    ):
         movement = _lp_ledger_movement(lp_account, p)
         gains = -_fund_total(fund, p, AccountType.GAIN_LOSS)  # credit-normal
         fees = _fund_total(fund, p, AccountType.FEE_EXPENSE)  # debit-normal

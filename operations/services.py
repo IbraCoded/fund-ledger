@@ -197,19 +197,26 @@ def record_investment(
     )
 
 
-def charge_fee(*, fund_id: UUID, idempotency_key: str, amount: Decimal, on_date: date) -> tuple[Transfer, bool]:
+def charge_fee(
+    *, fund_id: UUID, idempotency_key: str, amount: Decimal, on_date: date
+) -> tuple[Transfer, bool]:
     fund = Fund.objects.get(id=fund_id)
     legs = [
         Leg(get_account(fund, AccountType.FEE_EXPENSE).id, Direction.DEBIT, amount),
         Leg(get_account(fund, AccountType.CASH).id, Direction.CREDIT, amount),
     ]
     return post_transfer_idempotent(
-        idempotency_key=idempotency_key, legs=legs, period=period_for(fund, on_date),
-        transfer_type=TransferType.FEE, description="Management fee",
+        idempotency_key=idempotency_key,
+        legs=legs,
+        period=period_for(fund, on_date),
+        transfer_type=TransferType.FEE,
+        description="Management fee",
     )
 
 
-def record_valuation(*, fund_id: UUID, idempotency_key: str, change: Decimal, on_date: date) -> tuple[Transfer, bool]:
+def record_valuation(
+    *, fund_id: UUID, idempotency_key: str, change: Decimal, on_date: date
+) -> tuple[Transfer, bool]:
     """Mark the portfolio up (change > 0) or down (change < 0), in base currency."""
     if change == 0:
         raise InvalidTransfer("a valuation change of zero is not a transfer")
@@ -219,6 +226,9 @@ def record_valuation(*, fund_id: UUID, idempotency_key: str, change: Decimal, on
     debit, credit = (investment, gain_loss) if change > 0 else (gain_loss, investment)
     legs = [Leg(debit, Direction.DEBIT, abs(change)), Leg(credit, Direction.CREDIT, abs(change))]
     return post_transfer_idempotent(
-        idempotency_key=idempotency_key, legs=legs, period=period_for(fund, on_date),
-        transfer_type=TransferType.ADJUSTMENT, description="Valuation change",
+        idempotency_key=idempotency_key,
+        legs=legs,
+        period=period_for(fund, on_date),
+        transfer_type=TransferType.ADJUSTMENT,
+        description="Valuation change",
     )

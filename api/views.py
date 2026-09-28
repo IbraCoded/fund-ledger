@@ -7,10 +7,12 @@ from django.utils.dateparse import parse_datetime
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import CursorPagination
+from rest_framework.renderers import JSONRenderer
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.renderers import CSVRenderer
 from api.serializers import (
     AccountSerializer,
     CapitalCallRequestSerializer,
@@ -22,13 +24,14 @@ from api.serializers import (
     ReverseRequestSerializer,
     TransferSerializer,
 )
-from funds.models import Fund
+from funds.models import Fund, LimitedPartner, Period
 from ledger.models import Account, Entry, Transfer
 from ledger.queries import base_balance, native_balance
 from ledger.retry import with_deadlock_retry
 from ledger.services import reverse_transfer
 from operations.periods import close_period, period_for
 from operations.services import create_capital_call, create_distribution
+from operations.statements import lp_statement
 
 IDEMPOTENCY_HEADER = "Idempotency-Key"
 
@@ -134,3 +137,22 @@ class ClosePeriodView(APIView):
     def post(self, request: Request, fund_id: UUID, period_id: UUID) -> Response:
         period, _ = close_period(fund_id=fund_id, period_id=period_id)
         return Response(PeriodSerializer(period).data)
+
+
+class LPStatementView(APIView):
+    renderer_classes = [JSONRenderer, CSVRenderer]
+
+    def get(self, request: Request, fund_id: UUID, lp_id: UUID) -> Response:
+        fund = get_object_or_404(Fund, id=fund_id)
+        lp = get_object_or_404(LimitedPartner, id=lp_id)
+        try:
+            period_id = UUID(request.query_params.get("period", ""))
+        except ValueError:
+            raise ValidationError({"period": "A period id (UUID) is required."}) from None
+        period = get_object_or_404(Period, id=period_id, fund=fund)
+        statement = lp_statement(fund=fund, lp=lp, period=period)
+        response = Response(statement.as_dict())
+        if request.accepted_renderer.format == "csv":
+            filename = f"statement-{lp.id}-{period.start_date}.csv"
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
