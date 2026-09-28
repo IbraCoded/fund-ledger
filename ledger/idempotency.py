@@ -4,13 +4,19 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from collections.abc import Callable
 from decimal import Decimal
 
+import structlog
 from django.db import IntegrityError, transaction
 
 from ledger.errors import IdempotencyConflict, LedgerError
 from ledger.models import Transfer
+from observability.metrics import TRANSFER_LATENCY, TRANSFERS
+
+log = structlog.get_logger(__name__)
+
 
 IDEMPOTENCY_CONSTRAINT = "transfer_idempotency_key_unique"
 FOUR_DP = Decimal("0.0001")
@@ -36,16 +42,46 @@ def run_idempotent[T](
     *,
     idempotency_key: str,
     request_hash: str,
-    transfer_type: str,  # used for metrics labels in Step 13
+    transfer_type: str,
     create: Callable[[], T],
     replay: Callable[[Transfer], T],
 ) -> tuple[T, bool]:
-    """Run create() at most once per key. Returns (result, created).
+    """Run create() at most once per key, with metrics and a log line for every outcome."""
+    started = time.perf_counter()
+    outcome = "error"
+    try:
+        result, created = _run_once(idempotency_key, request_hash, create, replay)
+        outcome = "created" if created else "replayed"
+    except LedgerError as exc:
+        outcome = "rejected"
+        log.info(
+            "transfer.rejected",
+            idempotency_key=idempotency_key,
+            transfer_type=transfer_type,
+            error=exc.code,
+        )
+        raise
+    finally:
+        TRANSFERS.labels(transfer_type=transfer_type, outcome=outcome).inc()
+        TRANSFER_LATENCY.labels(transfer_type=transfer_type).observe(time.perf_counter() - started)
+    log.info(
+        "transfer.posted",
+        transfer_id=str(_transfer_id(result)),
+        idempotency_key=idempotency_key,
+        transfer_type=transfer_type,
+        replay=not created,
+    )
+    return result, created
 
-    create() runs in a SAVEPOINT. If it hits the unique idempotency constraint (a retry,
-    possibly one that waited on the index while the original was in flight), we roll
-    back to the savepoint, fetch the original transfer and replay it.
-    """
+
+def _run_once[T](
+    idempotency_key: str,
+    request_hash: str,
+    create: Callable[[], T],
+    replay: Callable[[Transfer], T],
+) -> tuple[T, bool]:
+    # Unchanged from Step 6: replay a known key; otherwise create, and replay if a
+    # duplicate won the race (at the unique key, or before it via the locks).
     existing = Transfer.objects.filter(idempotency_key=idempotency_key).first()
     if existing is None:
         try:
@@ -64,3 +100,8 @@ def run_idempotent[T](
             f"Idempotency-Key {idempotency_key!r} was already used for a different request"
         )
     return replay(existing), False
+
+
+def _transfer_id(result: object) -> object:
+    # A Transfer, or a document (CapitalCall, Distribution) that points at one.
+    return getattr(result, "transfer_id", None) or getattr(result, "pk", None)

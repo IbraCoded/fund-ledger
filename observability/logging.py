@@ -5,7 +5,9 @@ import structlog
 
 
 def configure_logging(*, json_output: bool = True, level: str = "INFO") -> None:
-    renderer = structlog.processors.JSONRenderer() if json_output else structlog.dev.ConsoleRenderer()
+    renderer = (
+        structlog.processors.JSONRenderer() if json_output else structlog.dev.ConsoleRenderer()
+    )
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,  # request_id etc. bound by middleware

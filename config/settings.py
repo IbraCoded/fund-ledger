@@ -1,9 +1,11 @@
 """Django settings. Everything environment-specific comes from env vars (12-factor)."""
 
 from __future__ import annotations
-from observability.logging import configure_logging
+
 import os
 from pathlib import Path
+
+from observability.logging import configure_logging
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 

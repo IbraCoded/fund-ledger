@@ -5,6 +5,8 @@ from collections.abc import Callable
 import structlog
 from django.db import OperationalError, connection
 
+from observability.metrics import DB_RETRIES
+
 log = structlog.get_logger(__name__)
 
 # deadlock_detected, serialization_failure: both mean "rolled back, safe to retry".
@@ -27,6 +29,7 @@ def with_deadlock_retry[T](
             retryable = sqlstate in RETRYABLE_SQLSTATES and not connection.in_atomic_block
             if not retryable or attempt == attempts:
                 raise
+            DB_RETRIES.labels(sqlstate=sqlstate).inc()
             log.warning("db.retry", sqlstate=sqlstate, attempt=attempt)
             time.sleep(base_delay * (2**attempt) * random.random())
     raise AssertionError("unreachable")

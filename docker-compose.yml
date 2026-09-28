@@ -19,12 +19,14 @@ services:
     build: .
     env_file: .env
     environment:
-      POSTGRES_HOST: db          # overrides .env: inside Compose the DB host is "db"
+      POSTGRES_HOST: db
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
     depends_on:
       db:
         condition: service_healthy
     command: >
-      sh -c "python manage.py migrate --noinput &&
+      sh -c "rm -rf /tmp/prometheus && mkdir -p /tmp/prometheus &&
+             python manage.py migrate --noinput &&
              gunicorn config.wsgi:application -c gunicorn.conf.py"
     ports:
       - "8000:8000"
