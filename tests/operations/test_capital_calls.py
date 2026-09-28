@@ -7,9 +7,11 @@ from ledger.errors import IdempotencyConflict
 from ledger.models import AccountType
 from ledger.queries import native_balance
 from ledger.reconciliation import total_imbalance
+from ledger.services import reverse_transfer
 from operations.chart import get_account, lp_capital_accounts
 from operations.errors import CommitmentExceeded, NoPeriod
 from operations.models import CapitalCall
+from operations.queries import contributed
 from operations.services import create_capital_call
 from tests.concurrency import run_concurrently
 
@@ -75,3 +77,9 @@ def test_concurrent_calls_get_distinct_numbers(pe):
     run_concurrently(lambda i: _call(pe, key=f"cc-{i}", amount="1000.00"), range(8), workers=8)
     numbers = sorted(CapitalCall.objects.values_list("call_number", flat=True))
     assert numbers == list(range(1, 9))
+
+
+def test_reversed_call_no_longer_counts_as_contributed(pe):
+    call, _ = _call(pe, amount="1000.00")
+    reverse_transfer(transfer_id=call.transfer_id, idempotency_key="rev", period=pe.h1)
+    assert all(contributed(a) == 0 for a in lp_capital_accounts(pe.fund).values())

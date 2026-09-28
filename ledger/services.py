@@ -8,19 +8,20 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from django.db import connection, transaction
+from django.db import IntegrityError, connection, transaction
 
 from funds.models import Period, PeriodStatus
 from ledger.errors import (
+    AlreadyReversed,
     ClosedPeriod,
     InsufficientFunds,
     InvalidTransfer,
     UnbalancedTransfer,
     UnknownAccount,
 )
-from ledger.idempotency import money_str, request_fingerprint, run_idempotent
+from ledger.idempotency import constraint_name, money_str, request_fingerprint, run_idempotent
 from ledger.legs import Leg, PricedLeg
-from ledger.models import NON_NEGATIVE_TYPES, Account, Direction, Entry, Transfer
+from ledger.models import NON_NEGATIVE_TYPES, Account, Direction, Entry, Transfer, TransferType
 from ledger.pricing import price_legs
 from ledger.queries import native_balance
 
@@ -197,3 +198,61 @@ def post_transfer_idempotent(
         ),
         replay=lambda existing: existing,
     )
+
+
+REVERSES_CONSTRAINT = "transfer_reverses_unique"
+
+
+def reverse_transfer(
+    *,
+    transfer_id: UUID,
+    idempotency_key: str,
+    period: Period,
+    created_by: str = "",
+) -> tuple[Transfer, bool]:
+    """Post a new transfer that exactly cancels `transfer_id`. Never touches the original."""
+    original = Transfer.objects.get(id=transfer_id)
+    if original.transfer_type == TransferType.REVERSAL:
+        raise InvalidTransfer("a reversal cannot itself be reversed; post a new transfer instead")
+
+    existing = original.reversals.first()
+    if existing is not None and existing.idempotency_key != idempotency_key:
+        raise AlreadyReversed(f"transfer {original.id} was already reversed by {existing.id}")
+
+    # Flip each leg, keeping the ORIGINAL fx_rate and base_amount so the reversal
+    # cancels the original exactly in base currency, whatever rates have done since.
+    legs = [
+        Leg(
+            e.account_id, _flip(e.direction), e.amount, fx_rate=e.fx_rate, base_amount=e.base_amount
+        )
+        for e in original.entries.order_by("id")
+    ]
+    request_hash = request_fingerprint(
+        kind="reversal", reverses=str(original.id), period=str(period.id)
+    )
+    try:
+        return run_idempotent(
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+            transfer_type=TransferType.REVERSAL,
+            create=lambda: post_transfer(
+                idempotency_key=idempotency_key,
+                legs=legs,
+                period=period,
+                transfer_type=TransferType.REVERSAL,
+                reverses=original,
+                description=f"Reversal of {original.id}",
+                request_hash=request_hash,
+                created_by=created_by,
+            ),
+            replay=lambda transfer: transfer,
+        )
+    except IntegrityError as exc:
+        # Lost a race with a concurrent reversal using a different key.
+        if constraint_name(exc) == REVERSES_CONSTRAINT:
+            raise AlreadyReversed(f"transfer {original.id} was already reversed") from exc
+        raise
+
+
+def _flip(direction: str) -> str:
+    return Direction.CREDIT if direction == Direction.DEBIT else Direction.DEBIT

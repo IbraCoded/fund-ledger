@@ -9,7 +9,7 @@ from decimal import Decimal
 
 from django.db import IntegrityError, transaction
 
-from ledger.errors import IdempotencyConflict
+from ledger.errors import IdempotencyConflict, LedgerError
 from ledger.models import Transfer
 
 IDEMPOTENCY_CONSTRAINT = "transfer_idempotency_key_unique"
@@ -46,13 +46,19 @@ def run_idempotent[T](
     possibly one that waited on the index while the original was in flight), we roll
     back to the savepoint, fetch the original transfer and replay it.
     """
-    try:
-        with transaction.atomic():
-            return create(), True
-    except IntegrityError as exc:
-        if constraint_name(exc) != IDEMPOTENCY_CONSTRAINT:
-            raise
-    existing = Transfer.objects.get(idempotency_key=idempotency_key)
+    existing = Transfer.objects.filter(idempotency_key=idempotency_key).first()
+    if existing is None:
+        try:
+            with transaction.atomic():
+                return create(), True
+        except IntegrityError as exc:
+            if constraint_name(exc) != IDEMPOTENCY_CONSTRAINT:
+                raise
+            existing = Transfer.objects.get(idempotency_key=idempotency_key)
+        except LedgerError:
+            existing = Transfer.objects.filter(idempotency_key=idempotency_key).first()
+            if existing is None:
+                raise
     if existing.request_hash != request_hash:
         raise IdempotencyConflict(
             f"Idempotency-Key {idempotency_key!r} was already used for a different request"

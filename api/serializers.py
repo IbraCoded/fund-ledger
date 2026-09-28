@@ -104,3 +104,7 @@ class DistributionSerializer(serializers.ModelSerializer):
             "classification",
             "transfer",
         ]
+
+
+class ReverseRequestSerializer(serializers.Serializer):
+    on_date = serializers.DateField(required=False)

@@ -18,11 +18,15 @@ from api.serializers import (
     DistributionRequestSerializer,
     DistributionSerializer,
     EntrySerializer,
+    ReverseRequestSerializer,
+    TransferSerializer,
 )
 from funds.models import Fund
-from ledger.models import Account, Entry
+from ledger.models import Account, Entry, Transfer
 from ledger.queries import base_balance, native_balance
 from ledger.retry import with_deadlock_retry
+from ledger.services import reverse_transfer
+from operations.periods import period_for
 from operations.services import create_capital_call, create_distribution
 
 IDEMPOTENCY_HEADER = "Idempotency-Key"
@@ -107,3 +111,19 @@ class DistributionsView(APIView):
             lambda: create_distribution(fund_id=fund_id, idempotency_key=key, **body.validated_data)
         )
         return created_or_replayed(DistributionSerializer(distribution).data, created)
+
+
+class ReverseTransferView(APIView):
+    def post(self, request: Request, transfer_id: UUID) -> Response:
+        key = idempotency_key(request)
+        original = get_object_or_404(
+            Transfer.objects.select_related("period__fund"), id=transfer_id
+        )
+        body = ReverseRequestSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        on_date = body.validated_data.get("on_date") or timezone.localdate()
+        period = period_for(original.period.fund, on_date)
+        reversal, created = with_deadlock_retry(
+            lambda: reverse_transfer(transfer_id=original.id, idempotency_key=key, period=period)
+        )
+        return created_or_replayed(TransferSerializer(reversal).data, created)
