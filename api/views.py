@@ -15,13 +15,15 @@ from api.serializers import (
     AccountSerializer,
     CapitalCallRequestSerializer,
     CapitalCallSerializer,
+    DistributionRequestSerializer,
+    DistributionSerializer,
     EntrySerializer,
 )
 from funds.models import Fund
 from ledger.models import Account, Entry
 from ledger.queries import base_balance, native_balance
 from ledger.retry import with_deadlock_retry
-from operations.services import create_capital_call
+from operations.services import create_capital_call, create_distribution
 
 IDEMPOTENCY_HEADER = "Idempotency-Key"
 
@@ -93,3 +95,15 @@ class AccountEntriesView(generics.ListAPIView):
     def get_queryset(self):
         account = get_object_or_404(Account, id=self.kwargs["account_id"])
         return Entry.objects.filter(account=account)
+
+
+class DistributionsView(APIView):
+    def post(self, request: Request, fund_id: UUID) -> Response:
+        key = idempotency_key(request)
+        get_object_or_404(Fund, id=fund_id)
+        body = DistributionRequestSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        distribution, created = with_deadlock_retry(
+            lambda: create_distribution(fund_id=fund_id, idempotency_key=key, **body.validated_data)
+        )
+        return created_or_replayed(DistributionSerializer(distribution).data, created)

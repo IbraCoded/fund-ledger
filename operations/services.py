@@ -17,7 +17,7 @@ from ledger.services import post_transfer
 from operations.allocation import allocate
 from operations.chart import get_account, lp_capital_accounts
 from operations.errors import CommitmentExceeded
-from operations.models import CapitalCall
+from operations.models import CapitalCall, Distribution
 from operations.periods import period_for
 from operations.queries import contributed
 
@@ -99,4 +99,63 @@ def create_capital_call(
         transfer_type=TransferType.CAPITAL_CALL,
         create=create,
         replay=lambda transfer: CapitalCall.objects.get(transfer=transfer),
+    )
+
+
+def create_distribution(
+    *,
+    fund_id: UUID,
+    idempotency_key: str,
+    total_amount: Decimal,
+    payment_date: date,
+    classification: str,
+    created_by: str = "",
+) -> tuple[Distribution, bool]:
+    request_hash = request_fingerprint(
+        kind="distribution",
+        fund=str(fund_id),
+        total=money_str(total_amount),
+        payment_date=payment_date.isoformat(),
+        classification=str(classification),
+    )
+
+    def create() -> Distribution:
+        fund = Fund.objects.select_for_update().get(id=fund_id)
+        period = period_for(fund, payment_date)
+        _, shares = _pro_rata(fund, total_amount)
+        lp_accounts = lp_capital_accounts(fund)
+        cash = get_account(fund, AccountType.CASH)
+        legs: list[Leg] = []
+        for lp_id, share in sorted(shares.items(), key=lambda item: str(item[0])):
+            if share == 0:
+                continue
+            legs.append(Leg(lp_accounts[lp_id].id, Direction.DEBIT, share))
+            legs.append(Leg(cash.id, Direction.CREDIT, share))
+        number = (
+            Distribution.objects.filter(fund=fund).aggregate(n=Max("distribution_number"))["n"] or 0
+        ) + 1
+        transfer = post_transfer(
+            idempotency_key=idempotency_key,
+            legs=legs,
+            period=period,
+            transfer_type=TransferType.DISTRIBUTION,
+            description=f"Distribution #{number} ({classification})",
+            request_hash=request_hash,
+            created_by=created_by,
+        )
+        return Distribution.objects.create(
+            fund=fund,
+            distribution_number=number,
+            payment_date=payment_date,
+            total_amount=total_amount,
+            classification=classification,
+            transfer=transfer,
+        )
+
+    return run_idempotent(
+        idempotency_key=idempotency_key,
+        request_hash=request_hash,
+        transfer_type=TransferType.DISTRIBUTION,
+        create=create,
+        replay=lambda transfer: Distribution.objects.get(transfer=transfer),
     )

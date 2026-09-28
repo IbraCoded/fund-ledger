@@ -4,7 +4,7 @@ from typing import TypedDict
 from rest_framework import serializers
 
 from ledger.models import Account, Entry, Transfer
-from operations.models import CapitalCall
+from operations.models import CapitalCall, Distribution, DistributionClassification
 
 
 class MoneyInKwargs(TypedDict):
@@ -82,5 +82,25 @@ class CapitalCallSerializer(serializers.ModelSerializer):
             "notice_date",
             "due_date",
             "total_amount",
+            "transfer",
+        ]
+
+
+class DistributionRequestSerializer(serializers.Serializer):
+    total_amount = serializers.DecimalField(**MONEY_IN)
+    payment_date = serializers.DateField()
+    classification = serializers.ChoiceField(choices=DistributionClassification.choices)
+
+
+class DistributionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Distribution
+        fields = [
+            "id",
+            "fund",
+            "distribution_number",
+            "payment_date",
+            "total_amount",
+            "classification",
             "transfer",
         ]
