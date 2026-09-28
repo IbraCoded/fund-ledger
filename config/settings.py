@@ -60,4 +60,6 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
     "UNAUTHENTICATED_USER": None,
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "DEFAULT_PARSER_CLASSES": ["api.parsers.DecimalJSONParser"],
+    "EXCEPTION_HANDLER": "api.exceptions.exception_handler",
 }

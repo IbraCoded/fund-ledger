@@ -98,5 +98,5 @@ def create_capital_call(
         request_hash=request_hash,
         transfer_type=TransferType.CAPITAL_CALL,
         create=create,
-        replay=lambda transfer: transfer.capital_call,
+        replay=lambda transfer: CapitalCall.objects.get(transfer=transfer),
     )
