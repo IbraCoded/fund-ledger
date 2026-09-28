@@ -1,7 +1,7 @@
 """Django settings. Everything environment-specific comes from env vars (12-factor)."""
 
 from __future__ import annotations
-
+from observability.logging import configure_logging
 import os
 from pathlib import Path
 
@@ -30,6 +30,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "observability.middleware.RequestIDMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
 ]
@@ -63,3 +64,5 @@ REST_FRAMEWORK = {
     "DEFAULT_PARSER_CLASSES": ["api.parsers.DecimalJSONParser"],
     "EXCEPTION_HANDLER": "api.exceptions.exception_handler",
 }
+
+configure_logging(json_output=env("LOG_FORMAT", "json") == "json", level=env("LOG_LEVEL", "INFO"))

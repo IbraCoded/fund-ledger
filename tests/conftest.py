@@ -1,10 +1,11 @@
 from types import SimpleNamespace
-
+import structlog
 import pytest
 
 from ledger.models import AccountType
 from tests.factories import build_pe_fund, make_account, make_fund, make_period
 
+structlog.configure(cache_logger_on_first_use=False)
 
 @pytest.fixture
 def world():
