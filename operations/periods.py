@@ -8,6 +8,7 @@ from funds.models import Fund, Period, PeriodStatus
 from ledger.reconciliation import period_imbalance
 from operations.errors import NoPeriod, PeriodNotClosable
 
+
 def period_for(fund: Fund, on_date: date) -> Period:
     period = Period.objects.filter(
         fund=fund, start_date__lte=on_date, end_date__gte=on_date

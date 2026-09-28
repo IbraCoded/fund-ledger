@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal
 from uuid import UUID
 
 from django.db.models import Max
@@ -12,10 +12,11 @@ from funds.models import Commitment, Fund
 from ledger.errors import InvalidTransfer
 from ledger.idempotency import money_str, request_fingerprint, run_idempotent
 from ledger.legs import Leg
-from ledger.models import AccountType, Direction, TransferType
-from ledger.services import post_transfer
+from ledger.models import AccountType, Direction, Transfer, TransferType
+from ledger.pricing import fx_rate_for
+from ledger.services import post_transfer, post_transfer_idempotent
 from operations.allocation import allocate
-from operations.chart import get_account, lp_capital_accounts
+from operations.chart import ensure_account, get_account, lp_capital_accounts
 from operations.errors import CommitmentExceeded
 from operations.models import CapitalCall, Distribution
 from operations.periods import period_for
@@ -158,4 +159,39 @@ def create_distribution(
         transfer_type=TransferType.DISTRIBUTION,
         create=create,
         replay=lambda transfer: Distribution.objects.get(transfer=transfer),
+    )
+
+
+PENNY = Decimal("0.01")
+
+
+def record_investment(
+    *,
+    fund_id: UUID,
+    idempotency_key: str,
+    amount: Decimal,
+    currency: str,
+    on_date: date,
+) -> tuple[Transfer, bool]:
+    """Buy a holding in `currency`, paying from base-currency cash at the day's rate."""
+    fund = Fund.objects.get(id=fund_id)
+    period = period_for(fund, on_date)
+    investment = ensure_account(fund, AccountType.INVESTMENT, currency)
+    cash = get_account(fund, AccountType.CASH)
+    if currency == fund.base_currency:
+        legs = [Leg(investment.id, Direction.DEBIT, amount), Leg(cash.id, Direction.CREDIT, amount)]
+    else:
+        rate = fx_rate_for(currency, fund.base_currency, on_date)
+        cost = (amount * rate).quantize(PENNY, rounding=ROUND_HALF_EVEN)  # cash moves in pennies
+        legs = [
+            Leg(investment.id, Direction.DEBIT, amount, fx_rate=rate, base_amount=cost),
+            Leg(cash.id, Direction.CREDIT, cost),
+        ]
+    return post_transfer_idempotent(
+        idempotency_key=idempotency_key,
+        legs=legs,
+        period=period,
+        transfer_type=TransferType.INVESTMENT,
+        description=f"Investment {amount} {currency}",
+        fx_date=on_date,
     )

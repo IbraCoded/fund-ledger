@@ -3,16 +3,17 @@ from decimal import Decimal as D
 
 import pytest
 
+from funds.models import FxRate
 from ledger.errors import IdempotencyConflict
 from ledger.models import AccountType
-from ledger.queries import native_balance
+from ledger.queries import base_balance, native_balance
 from ledger.reconciliation import total_imbalance
 from ledger.services import reverse_transfer
 from operations.chart import get_account, lp_capital_accounts
 from operations.errors import CommitmentExceeded, NoPeriod
 from operations.models import CapitalCall
 from operations.queries import contributed
-from operations.services import create_capital_call
+from operations.services import create_capital_call, record_investment
 from tests.concurrency import run_concurrently
 
 pytestmark = pytest.mark.django_db
@@ -83,3 +84,21 @@ def test_reversed_call_no_longer_counts_as_contributed(pe):
     call, _ = _call(pe, amount="1000.00")
     reverse_transfer(transfer_id=call.transfer_id, idempotency_key="rev", period=pe.h1)
     assert all(contributed(a) == 0 for a in lp_capital_accounts(pe.fund).values())
+
+
+def test_foreign_investment_is_paid_from_base_cash_at_the_days_rate(pe):
+    FxRate.objects.create(
+        from_currency="USD", to_currency="GBP", rate=D("0.79"), as_of_date=date(2026, 1, 1)
+    )
+    _call(pe, amount="1000000.00")
+    record_investment(
+        fund_id=pe.fund.id,
+        idempotency_key="inv-1",
+        amount=D("100000"),
+        currency="USD",
+        on_date=date(2026, 3, 10),
+    )
+    holding = get_account(pe.fund, AccountType.INVESTMENT, "USD")
+    assert native_balance(holding.id) == D("100000")
+    assert base_balance(holding.id) == D("79000")
+    assert native_balance(get_account(pe.fund, AccountType.CASH).id) == D("921000")
