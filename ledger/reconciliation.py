@@ -32,17 +32,26 @@ def total_imbalance(*, as_of: datetime | None = None) -> Decimal:
     return _scalar(sql, params)
 
 
-def unbalanced_transfers(*, limit: int = 100) -> list[tuple[UUID, Decimal]]:
+def unbalanced_transfers(
+    *, fund_id: UUID | None = None, limit: int = 100
+) -> list[tuple[UUID, Decimal]]:
+    join, where = "", ""
+    params: list[SqlParam] = []
+    if fund_id is not None:
+        join = "JOIN ledger_account a ON a.id = e.account_id"
+        where = "WHERE a.fund_id = %s"
+        params.append(fund_id)
     sql = f"""
         SELECT e.transfer_id, SUM({SIGNED})
-          FROM ledger_entry e
+          FROM ledger_entry e {join} {where}
          GROUP BY e.transfer_id
         HAVING SUM({SIGNED}) <> 0
          ORDER BY e.transfer_id
          LIMIT %s
     """
+    params.append(limit)
     with connection.cursor() as cursor:
-        cursor.execute(sql, [limit])
+        cursor.execute(sql, params)
         return [(row[0], Decimal(row[1])) for row in cursor.fetchall()]
 
 
@@ -54,3 +63,12 @@ def period_imbalance(period_id: UUID) -> Decimal:
          WHERE t.period_id = %s
     """
     return _scalar(sql, [period_id])
+
+
+def fund_imbalance(fund_id: UUID) -> Decimal:
+    sql = f"""
+        SELECT COALESCE(SUM({SIGNED}), 0)
+          FROM ledger_entry e JOIN ledger_account a ON a.id = e.account_id
+         WHERE a.fund_id = %s
+    """
+    return _scalar(sql, [fund_id])

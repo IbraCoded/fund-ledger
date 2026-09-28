@@ -27,6 +27,7 @@ from api.serializers import (
 from funds.models import Fund, LimitedPartner, Period
 from ledger.models import Account, Entry, Transfer
 from ledger.queries import base_balance, native_balance
+from ledger.reconciliation import fund_imbalance, unbalanced_transfers
 from ledger.retry import with_deadlock_retry
 from ledger.services import reverse_transfer
 from operations.periods import close_period, period_for
@@ -156,3 +157,20 @@ class LPStatementView(APIView):
             filename = f"statement-{lp.id}-{period.start_date}.csv"
             response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
+
+
+class FundReconciliationView(APIView):
+    def get(self, request: Request, fund_id: UUID) -> Response:
+        fund = get_object_or_404(Fund, id=fund_id)
+        imbalance = fund_imbalance(fund.id)
+        broken = unbalanced_transfers(fund_id=fund.id)
+        return Response(
+            {
+                "fund": str(fund.id),
+                "balanced": imbalance == 0 and not broken,
+                "imbalance": format(imbalance, "f"),
+                "unbalanced_transfers": [
+                    {"transfer": str(t), "imbalance": format(amount, "f")} for t, amount in broken
+                ],
+            }
+        )
