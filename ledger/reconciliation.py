@@ -44,3 +44,13 @@ def unbalanced_transfers(*, limit: int = 100) -> list[tuple[UUID, Decimal]]:
     with connection.cursor() as cursor:
         cursor.execute(sql, [limit])
         return [(row[0], Decimal(row[1])) for row in cursor.fetchall()]
+
+
+def period_imbalance(period_id: UUID) -> Decimal:
+    sql = f"""
+        SELECT COALESCE(SUM({SIGNED}), 0)
+          FROM ledger_entry e
+          JOIN ledger_transfer t ON t.id = e.transfer_id
+         WHERE t.period_id = %s
+    """
+    return _scalar(sql, [period_id])

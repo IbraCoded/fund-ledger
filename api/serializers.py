@@ -3,6 +3,7 @@ from typing import TypedDict
 
 from rest_framework import serializers
 
+from funds.models import Period
 from ledger.models import Account, Entry, Transfer
 from operations.models import CapitalCall, Distribution, DistributionClassification
 
@@ -108,3 +109,9 @@ class DistributionSerializer(serializers.ModelSerializer):
 
 class ReverseRequestSerializer(serializers.Serializer):
     on_date = serializers.DateField(required=False)
+
+
+class PeriodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Period
+        fields = ["id", "fund", "start_date", "end_date", "status", "closed_at"]

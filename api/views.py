@@ -18,6 +18,7 @@ from api.serializers import (
     DistributionRequestSerializer,
     DistributionSerializer,
     EntrySerializer,
+    PeriodSerializer,
     ReverseRequestSerializer,
     TransferSerializer,
 )
@@ -26,7 +27,7 @@ from ledger.models import Account, Entry, Transfer
 from ledger.queries import base_balance, native_balance
 from ledger.retry import with_deadlock_retry
 from ledger.services import reverse_transfer
-from operations.periods import period_for
+from operations.periods import close_period, period_for
 from operations.services import create_capital_call, create_distribution
 
 IDEMPOTENCY_HEADER = "Idempotency-Key"
@@ -127,3 +128,9 @@ class ReverseTransferView(APIView):
             lambda: reverse_transfer(transfer_id=original.id, idempotency_key=key, period=period)
         )
         return created_or_replayed(TransferSerializer(reversal).data, created)
+
+
+class ClosePeriodView(APIView):
+    def post(self, request: Request, fund_id: UUID, period_id: UUID) -> Response:
+        period, _ = close_period(fund_id=fund_id, period_id=period_id)
+        return Response(PeriodSerializer(period).data)
