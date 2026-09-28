@@ -8,6 +8,13 @@ from django.db import transaction
 
 from funds.models import Commitment, Fund, FxRate, LimitedPartner, Period
 from operations.chart import open_fund_accounts
+from operations.services import (
+    charge_fee,
+    create_capital_call,
+    create_distribution,
+    record_investment,
+    record_valuation,
+)
 
 DEMO_NS = uuid.UUID("6f1c6a8e-3b7d-4c55-9a0e-2f4f7b1d9c10")
 
@@ -44,7 +51,52 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         fund = self.reference_data()
         open_fund_accounts(fund)
+        self.history(fund)
         self.stdout.write(self.style.SUCCESS(f"Demo fund ready: {fund.name} ({fund.id})"))
+
+    def history(self, fund: Fund) -> None:
+        """A year of fund activity. Fixed idempotency keys make re-runs replay, not duplicate."""
+        f = fund.id
+        create_capital_call(
+            fund_id=f,
+            idempotency_key="demo:call:1",
+            total_amount=Decimal("25000000.00"),
+            notice_date=date(2026, 1, 15),
+            due_date=date(2026, 1, 29),
+        )
+        record_investment(
+            fund_id=f,
+            idempotency_key="demo:invest:1",
+            amount=Decimal("15000000.00"),
+            currency="USD",
+            on_date=date(2026, 2, 10),
+        )
+        charge_fee(
+            fund_id=f,
+            idempotency_key="demo:fee:q1",
+            amount=Decimal("412500.00"),
+            on_date=date(2026, 3, 31),
+        )
+        create_capital_call(
+            fund_id=f,
+            idempotency_key="demo:call:2",
+            total_amount=Decimal("10000000.00"),
+            notice_date=date(2026, 4, 15),
+            due_date=date(2026, 4, 29),
+        )
+        record_valuation(
+            fund_id=f,
+            idempotency_key="demo:valuation:q2",
+            change=Decimal("1850000.00"),
+            on_date=date(2026, 6, 30),
+        )
+        create_distribution(
+            fund_id=f,
+            idempotency_key="demo:dist:1",
+            total_amount=Decimal("3000000.00"),
+            payment_date=date(2026, 7, 20),
+            classification="GAIN",
+        )
 
     @transaction.atomic
     def reference_data(self) -> Fund:

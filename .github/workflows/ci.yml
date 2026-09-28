@@ -34,5 +34,11 @@ jobs:
           uv run ruff format --check .
       - name: Type-check
         run: uv run mypy .
-      - name: Test
+      - name: Test (coverage gate in pyproject)
         run: uv run pytest --cov --cov-report=term-missing
+      - name: Reconcile a seeded ledger
+        run: |
+          uv run python manage.py migrate --noinput
+          uv run python manage.py seed_demo
+          uv run python manage.py seed_demo   # must replay, not duplicate
+          uv run python manage.py reconcile
