@@ -62,6 +62,18 @@ USE_TZ = True
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["access.authentication.ApiKeyAuthentication"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "api.throttling.MutationThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": env("THROTTLE_ANON", "30/min"),
+        "user": env("THROTTLE_USER", "600/min"),
+        "mutations": env("THROTTLE_MUTATIONS", "60/min"),
+    },
+    # Behind Caddy, the real client IP is the last X-Forwarded-For hop. 0 locally, 1 in production.
+    "NUM_PROXIES": int(env("NUM_PROXIES", "0")),
     "UNAUTHENTICATED_USER": None,
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["api.parsers.DecimalJSONParser"],

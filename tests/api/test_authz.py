@@ -10,6 +10,7 @@ from access.keys import issue_key
 from access.models import ApiKey
 from access.permissions import FundRolePermission
 from api import urls as api_urls
+from api.throttling import MutationThrottle
 from funds.models import Period
 from ledger.models import AccountType
 from operations.chart import get_account
@@ -161,3 +162,13 @@ def test_every_api_endpoint_requires_a_fund_role():
                 f"{view.__name__} is not fund-scoped"
             )
             assert hasattr(view, "required_role"), view.__name__
+
+
+def test_money_moving_requests_are_rate_limited(pe, api_for, monkeypatch):
+    # DRF reads the rate per instance via get_rate(); there's no class attribute to patch.
+    monkeypatch.setattr(MutationThrottle, "get_rate", lambda self: "2/min")
+    operator = api_for(pe.fund, "OPERATOR")
+    codes = [_post_call(operator, pe.fund, key=f"t{i}").status_code for i in range(3)]
+    assert codes == [201, 201, 429]
+    # Reads are unaffected by the mutation budget:
+    assert operator.get(f"/api/v1/funds/{pe.fund.id}/accounts/").status_code == 200

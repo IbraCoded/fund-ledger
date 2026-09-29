@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pytest
 import structlog
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from rest_framework.test import APIClient
 
 from access.keys import issue_key
@@ -53,3 +54,8 @@ def api_for(db):
         return client
 
     return make
+
+
+@pytest.fixture(autouse=True)
+def _fresh_throttle_state():
+    cache.clear()
