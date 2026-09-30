@@ -20,6 +20,8 @@ services:
     env_file: .env
     environment:
       POSTGRES_HOST: db
+      THROTTLE_USER: ${THROTTLE_USER:-600/min}
+      THROTTLE_MUTATIONS: ${THROTTLE_MUTATIONS:-60/min}
       PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
     depends_on:
       db:

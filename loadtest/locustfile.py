@@ -15,6 +15,7 @@ class LedgerUser(HttpUser):
     wait_time = between(0.05, 0.2)
 
     def on_start(self):
+        self.client.headers["Authorization"] = f"Bearer {os.environ['API_KEY']}"
         accounts = self.client.get(f"/api/v1/funds/{FUND_ID}/accounts/", name="accounts").json()
         self.account_ids = [a["id"] for a in accounts]
         self.sent: list[tuple[str, dict]] = []
@@ -23,14 +24,15 @@ class LedgerUser(HttpUser):
     def capital_call(self):
         key = str(uuid.uuid4())
         body = {"total_amount": "100.00", "notice_date": LOAD_DATE, "due_date": LOAD_DATE}
-        self.client.post(
+        response = self.client.post(
             f"/api/v1/funds/{FUND_ID}/capital-calls/",
             json=body,
             headers={"Idempotency-Key": key},
             name="capital_call",
         )
-        self.sent.append((key, body))
-        del self.sent[:-50]
+        if response.status_code == 201:
+            self.sent.append((key, body))
+            del self.sent[:-50]
 
     @task(1)
     def replay(self):
