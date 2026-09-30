@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 590" width="1000" height="590" role="img" aria-labelledby="title desc">
+  <title id="title">Fund Ledger architecture</title>
+  <desc id="desc">Requests pass through the Caddy edge into a Django API layered as api, operations and access, ledger, and funds, over PostgreSQL, which enforces the ledger invariants. GitHub Actions builds, scans and deploys the image; Prometheus and Grafana monitor it privately; nightly jobs back up the database, run a reconciling restore drill and open a new sandbox fund.</desc>
+  <style>
+    .bg { fill: #ffffff; }
+    .box { fill: #f6f8fa; stroke: #d0d7de; }
+    .core { fill: #ddf4ff; stroke: #54aeff; }
+    .frame { fill: none; stroke: #8c959f; stroke-dasharray: 5 4; }
+    .obs { fill: #fff8c5; stroke: #d4a72c; stroke-dasharray: 4 3; }
+    .h { fill: #1f2328; font: 600 14px system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .t { fill: #59636e; font: 11.5px system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .lbl { fill: #59636e; font: 600 11px system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: .04em; }
+    .arrow { stroke: #59636e; stroke-width: 1.5; fill: none; }
+    .head { fill: #59636e; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0d1117; }
+      .box { fill: #161b22; stroke: #30363d; }
+      .core { fill: #0c2d6b; stroke: #1f6feb; }
+      .frame { stroke: #6e7681; }
+      .obs { fill: #272115; stroke: #9e6a03; }
+      .h { fill: #e6edf3; }
+      .t, .lbl { fill: #9198a1; }
+      .arrow { stroke: #9198a1; }
+      .head { fill: #9198a1; }
+    }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="head" d="M0 0 L10 5 L0 10 z"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1000" height="590" rx="12"/>
+
+  <!-- Request path -->
+  <rect class="box" x="300" y="20" width="400" height="46" rx="8"/>
+  <text class="h" x="500" y="39" text-anchor="middle">Client</text>
+  <text class="t" x="500" y="56" text-anchor="middle">Authorization: Bearer API key · Idempotency-Key header</text>
+  <line class="arrow" x1="500" y1="66" x2="500" y2="90" marker-end="url(#a)"/>
+
+  <rect class="box" x="300" y="92" width="400" height="52" rx="8"/>
+  <text class="h" x="500" y="113" text-anchor="middle">Caddy edge</text>
+  <text class="t" x="500" y="131" text-anchor="middle">TLS · HSTS · CSP · 256 KB body limit · /metrics not public</text>
+  <line class="arrow" x1="500" y1="144" x2="500" y2="166" marker-end="url(#a)"/>
+
+  <rect class="frame" x="300" y="168" width="400" height="302" rx="10"/>
+  <text class="lbl" x="316" y="187">API CONTAINER · GUNICORN · DJANGO 5.2 + DRF</text>
+
+  <rect class="box" x="316" y="198" width="368" height="48" rx="6"/>
+  <text class="h" x="330" y="217">api/</text>
+  <text class="t" x="330" y="235">views · serializers · throttles · errors → HTTP status codes</text>
+
+  <rect class="box" x="316" y="254" width="250" height="48" rx="6"/>
+  <text class="h" x="330" y="273">operations/</text>
+  <text class="t" x="330" y="291">calls · distributions · fees · close</text>
+
+  <rect class="box" x="578" y="254" width="106" height="48" rx="6"/>
+  <text class="h" x="590" y="273">access/</text>
+  <text class="t" x="590" y="291">keys · roles</text>
+
+  <rect class="core" x="316" y="310" width="368" height="48" rx="6"/>
+  <text class="h" x="330" y="329">ledger/</text>
+  <text class="t" x="330" y="347">post_transfer · row locks · idempotency · FX · reconcile</text>
+
+  <rect class="box" x="316" y="366" width="368" height="48" rx="6"/>
+  <text class="h" x="330" y="385">funds/</text>
+  <text class="t" x="330" y="403">Fund · LimitedPartner · Commitment · Period · FxRate</text>
+
+  <rect class="obs" x="316" y="424" width="368" height="34" rx="6"/>
+  <text class="h" x="330" y="446" style="font-size:13px">observability/</text>
+  <text class="t" x="438" y="446">JSON logs · request IDs · /metrics · /healthz</text>
+
+  <line class="arrow" x1="500" y1="470" x2="500" y2="492" marker-end="url(#a)"/>
+
+  <rect class="core" x="300" y="494" width="400" height="72" rx="8"/>
+  <text class="h" x="500" y="515" text-anchor="middle">PostgreSQL 16 — the last line of defence</text>
+  <text class="t" x="500" y="533" text-anchor="middle">deferred balance trigger · append-only triggers · composite FKs</text>
+  <text class="t" x="500" y="550" text-anchor="middle">least-privilege app role · lock and statement timeouts</text>
+
+  <!-- Delivery (left) -->
+  <text class="lbl" x="20" y="84">DELIVERY</text>
+  <rect class="box" x="20" y="92" width="240" height="70" rx="8"/>
+  <text class="h" x="34" y="112">GitHub Actions CI</text>
+  <text class="t" x="34" y="130">ruff · mypy · pytest (85% coverage)</text>
+  <text class="t" x="34" y="147">pip-audit · Trivy · seed + reconcile</text>
+  <line class="arrow" x1="140" y1="162" x2="140" y2="188" marker-end="url(#a)"/>
+  <text class="t" x="148" y="180">image → GHCR</text>
+
+  <rect class="box" x="20" y="190" width="240" height="86" rx="8"/>
+  <text class="h" x="34" y="210">Deploy</text>
+  <text class="t" x="34" y="228">forced-command SSH key</text>
+  <text class="t" x="34" y="245">migrate job (owner role)</text>
+  <text class="t" x="34" y="262">health wait · reconcile · rollback</text>
+  <line class="arrow" x1="260" y1="233" x2="298" y2="233" marker-end="url(#a)"/>
+
+  <!-- Operations (right) -->
+  <text class="lbl" x="740" y="372">OPERATIONS</text>
+  <rect class="box" x="740" y="380" width="240" height="86" rx="8"/>
+  <text class="h" x="754" y="400">Prometheus + Grafana</text>
+  <text class="t" x="754" y="418">scrapes /metrics privately</text>
+  <text class="t" x="754" y="435">alerts: imbalance, availability,</text>
+  <text class="t" x="754" y="452">deadlocks, latency</text>
+  <line class="arrow" x1="684" y1="441" x2="738" y2="441" marker-end="url(#a)"/>
+
+  <rect class="box" x="740" y="490" width="240" height="80" rx="8"/>
+  <text class="h" x="754" y="510">Nightly jobs</text>
+  <text class="t" x="754" y="528">encrypted off-site backups</text>
+  <text class="t" x="754" y="545">restore drill that must reconcile</text>
+  <text class="t" x="754" y="562">open a fresh sandbox fund</text>
+  <line class="arrow" x1="738" y1="530" x2="702" y2="530" marker-end="url(#a)"/>
+</svg>
