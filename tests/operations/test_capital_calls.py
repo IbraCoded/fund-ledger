@@ -3,7 +3,7 @@ from decimal import Decimal as D
 
 import pytest
 
-from funds.models import FxRate
+from funds.models import Commitment, FxRate
 from ledger.errors import IdempotencyConflict
 from ledger.models import AccountType
 from ledger.queries import base_balance, native_balance
@@ -12,7 +12,7 @@ from ledger.services import reverse_transfer
 from operations.chart import get_account, lp_capital_accounts
 from operations.errors import CommitmentExceeded, NoPeriod
 from operations.models import CapitalCall
-from operations.queries import contributed
+from operations.queries import contributed, contributed_by_account
 from operations.services import create_capital_call, record_investment
 from tests.concurrency import run_concurrently
 
@@ -84,6 +84,28 @@ def test_reversed_call_no_longer_counts_as_contributed(pe):
     call, _ = _call(pe, amount="1000.00")
     reverse_transfer(transfer_id=call.transfer_id, idempotency_key="rev", period=pe.h1)
     assert all(contributed(a) == 0 for a in lp_capital_accounts(pe.fund).values())
+
+
+def test_grouped_contributions_match_each_lps_entries(pe):
+    first, _ = _call(pe, key="g1", amount="1000.00")
+    second, _ = _call(pe, key="g2", amount="777.77")
+    reverse_transfer(transfer_id=second.transfer_id, idempotency_key="g2-rev", period=pe.h1)
+    accounts = list(lp_capital_accounts(pe.fund).values())
+
+    grouped = contributed_by_account(accounts)
+
+    # Only the first call still counts; each LP's share is what its account was credited.
+    assert grouped == {a.id: -first.transfer.entries.get(account=a).signed_amount for a in accounts}
+    assert grouped == {a.id: contributed(a) for a in accounts}
+    assert sum(grouped.values()) == D("1000.00")
+
+
+def test_unfunded_check_counts_earlier_calls(pe):
+    total_committed = sum(c.committed_amount for c in Commitment.objects.filter(fund=pe.fund))
+    _call(pe, key="all", amount=str(total_committed))  # calls every LP's full commitment
+    with pytest.raises(CommitmentExceeded):
+        _call(pe, key="one-more", amount="1.00")
+    assert CapitalCall.objects.count() == 1
 
 
 def test_foreign_investment_is_paid_from_base_cash_at_the_days_rate(pe):

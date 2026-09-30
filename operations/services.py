@@ -20,7 +20,7 @@ from operations.chart import ensure_account, get_account, lp_capital_accounts
 from operations.errors import CommitmentExceeded
 from operations.models import CapitalCall, Distribution
 from operations.periods import period_for
-from operations.queries import contributed
+from operations.queries import contributed_by_account
 
 
 def _pro_rata(fund: Fund, total: Decimal) -> tuple[list[Commitment], dict[UUID, Decimal]]:
@@ -57,9 +57,10 @@ def create_capital_call(
         period = period_for(fund, notice_date)
         commitments, shares = _pro_rata(fund, total_amount)
         lp_accounts = lp_capital_accounts(fund)
+        paid_in = contributed_by_account(lp_accounts.values())
 
         for c in commitments:
-            unfunded = c.committed_amount - contributed(lp_accounts[c.lp_id])
+            unfunded = c.committed_amount - paid_in[lp_accounts[c.lp_id].id]
             if shares[c.lp_id] > unfunded:
                 raise CommitmentExceeded(
                     f"LP {c.lp_id} would be called {shares[c.lp_id]}, unfunded is {unfunded}"
