@@ -27,7 +27,9 @@ class ErrorSerializer(serializers.Serializer):
 class BalanceSerializer(serializers.Serializer):
     account = serializers.UUIDField()
     currency = serializers.CharField()
-    balance = serializers.CharField(help_text="Native currency, debit-positive, as a decimal string")
+    balance = serializers.CharField(
+        help_text="Native currency, debit-positive, as a decimal string"
+    )
     base_balance = serializers.CharField(help_text="Fund base currency at booking-time FX")
     as_of = serializers.DateTimeField(allow_null=True)
 

@@ -64,7 +64,10 @@ IDEMPOTENCY_PARAMETER = OpenApiParameter(
     description="Unique per logical request. Retrying with the same key and body replays the original result.",
 )
 AS_OF_PARAMETER = OpenApiParameter(
-    name="as_of", type=OpenApiTypes.DATETIME, location=OpenApiParameter.QUERY, required=False,
+    name="as_of",
+    type=OpenApiTypes.DATETIME,
+    location=OpenApiParameter.QUERY,
+    required=False,
     description="Point-in-time balance (ISO-8601; UTC if no offset).",
 )
 PERIOD_PARAMETER = OpenApiParameter(
@@ -87,12 +90,15 @@ WRITE_ERRORS = {
 
 # --- helpers --------------------------------------------------------------------------------
 
+
 def idempotency_key(request: Request) -> str:
     key = request.headers.get(IDEMPOTENCY_HEADER, "").strip()
     if not key:
         raise ValidationError({IDEMPOTENCY_HEADER: "This header is required on mutating requests."})
     if not IDEMPOTENCY_KEY_PATTERN.fullmatch(key):
-        raise ValidationError({IDEMPOTENCY_HEADER: "Use 1-255 of these characters: A-Z a-z 0-9 . _ : -"})
+        raise ValidationError(
+            {IDEMPOTENCY_HEADER: "Use 1-255 of these characters: A-Z a-z 0-9 . _ : -"}
+        )
     return key
 
 
@@ -116,6 +122,7 @@ def actor(request: Request) -> str:
 
 # --- authorization scoping -------------------------------------------------------------------
 
+
 class FundScoped(APIView):
     """Base view: the caller must hold at least `required_role` on the fund in the URL."""
 
@@ -131,7 +138,9 @@ class AccountScoped(FundScoped):
 
     def get_fund_id(self) -> UUID:
         fund_id = (
-            Account.objects.filter(id=self.kwargs["account_id"]).values_list("fund_id", flat=True).first()
+            Account.objects.filter(id=self.kwargs["account_id"])
+            .values_list("fund_id", flat=True)
+            .first()
         )
         if fund_id is None:
             raise NotFound()
@@ -139,6 +148,7 @@ class AccountScoped(FundScoped):
 
 
 # --- views -----------------------------------------------------------------------------------
+
 
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
@@ -196,7 +206,10 @@ class CapitalCallsView(FundScoped):
         body.is_valid(raise_exception=True)
         call, created = with_deadlock_retry(
             lambda: create_capital_call(
-                fund_id=fund_id, idempotency_key=key, created_by=actor(request), **body.validated_data
+                fund_id=fund_id,
+                idempotency_key=key,
+                created_by=actor(request),
+                **body.validated_data,
             )
         )
         return created_or_replayed(CapitalCallSerializer(call).data, created)
@@ -216,7 +229,10 @@ class DistributionsView(FundScoped):
         body.is_valid(raise_exception=True)
         distribution, created = with_deadlock_retry(
             lambda: create_distribution(
-                fund_id=fund_id, idempotency_key=key, created_by=actor(request), **body.validated_data
+                fund_id=fund_id,
+                idempotency_key=key,
+                created_by=actor(request),
+                **body.validated_data,
             )
         )
         return created_or_replayed(DistributionSerializer(distribution).data, created)
@@ -249,7 +265,10 @@ class ReverseTransferView(FundScoped):
         period = period_for(original.period.fund, on_date)
         reversal, created = with_deadlock_retry(
             lambda: reverse_transfer(
-                transfer_id=original.id, idempotency_key=key, period=period, created_by=actor(request)
+                transfer_id=original.id,
+                idempotency_key=key,
+                period=period,
+                created_by=actor(request),
             )
         )
         return created_or_replayed(TransferSerializer(reversal).data, created)
@@ -302,7 +321,9 @@ class LPStatementView(FundScoped):
     required_role = Role.LP
     renderer_classes = [JSONRenderer, CSVRenderer]
 
-    @extend_schema(parameters=[PERIOD_PARAMETER], responses={200: StatementSerializer, **READ_ERRORS})
+    @extend_schema(
+        parameters=[PERIOD_PARAMETER], responses={200: StatementSerializer, **READ_ERRORS}
+    )
     def get(self, request: Request, fund_id: UUID, lp_id: UUID) -> Response:
         membership = membership_of(request)
         if membership.role == Role.LP and membership.lp_id != lp_id:

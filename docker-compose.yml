@@ -1,37 +1,84 @@
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m" # without rotation, container logs eventually fill the disk
+    max-file: "5"
+
+x-app: &app
+  build: .
+  image: fund-ledger:dev
+  env_file: .env
+  environment: &app-env
+    POSTGRES_HOST: db
+    CACHE: db
+  logging: *logging
+
 services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_DB: ledger
-      POSTGRES_USER: ledger
-      POSTGRES_PASSWORD: ledger
+      POSTGRES_DB: ${POSTGRES_DB:-ledger}
+      POSTGRES_USER: ${POSTGRES_USER:-ledger}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ledger}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ledger -d ledger"]
+      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 3s
       timeout: 3s
       retries: 20
+    logging: *logging
 
-  api:
-    build: .
-    env_file: .env
-    environment:
-      POSTGRES_HOST: db
-      THROTTLE_USER: ${THROTTLE_USER:-600/min}
-      THROTTLE_MUTATIONS: ${THROTTLE_MUTATIONS:-60/min}
-      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
+  # One-shot job, runs as the OWNER: schema changes, cache table, then app-role grants.
+  migrate:
+    <<: *app
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py createcachetable &&
+             python manage.py apply_db_grants"
     depends_on:
       db:
         condition: service_healthy
-    command: >
-      sh -c "rm -rf /tmp/prometheus && mkdir -p /tmp/prometheus &&
-             python manage.py migrate --noinput &&
-             gunicorn config.wsgi:application -c gunicorn.conf.py"
+    restart: "no"
+
+  # Long-running API process, runs as the least-privilege APP role.
+  api:
+    <<: *app
+    environment:
+      <<: *app-env
+      POSTGRES_USER: ${APP_DB_USER:-ledger_app}
+      POSTGRES_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD in .env}
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
+      THROTTLE_USER: ${THROTTLE_USER:-600/min}
+      THROTTLE_MUTATIONS: ${THROTTLE_MUTATIONS:-60/min}
+    command: sh -c "mkdir -p /tmp/prometheus && exec gunicorn config.wsgi:application -c gunicorn.conf.py"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    read_only: true # nothing in the container can be modified at runtime
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
       - "8000:8000"
+
   locust:
     image: locustio/locust
     profiles: ["load"]

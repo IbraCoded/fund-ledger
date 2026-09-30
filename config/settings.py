@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.auth",
     "rest_framework",
+    "drf_spectacular",
     "funds",
     "ledger",
     "operations",
@@ -118,7 +119,9 @@ SPECTACULAR_SETTINGS = {
     ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
-    "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],  # the docs are public; the data isn't
+    "SERVE_PERMISSIONS": [
+        "rest_framework.permissions.AllowAny"
+    ],  # the docs are public; the data isn't
     "SERVE_AUTHENTICATION": [],
     "COMPONENT_SPLIT_REQUEST": True,
     "SCHEMA_PATH_PREFIX": r"/api/v1",

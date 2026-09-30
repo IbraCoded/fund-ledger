@@ -1,0 +1,47 @@
+services:
+  db:
+    ports: !reset [] # Postgres is never reachable from the internet
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+
+  migrate:
+    build: !reset null
+    image: ${IMAGE:?set IMAGE in .env}:${IMAGE_TAG:?IMAGE_TAG is set by ops/compose.sh}
+    environment:
+      DJANGO_ENV: production
+
+  api:
+    build: !reset null
+    image: ${IMAGE}:${IMAGE_TAG}
+    ports: !reset [] # only Caddy talks to api
+    restart: unless-stopped
+    environment:
+      DJANGO_ENV: production
+      NUM_PROXIES: "1"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  caddy_data:
+  caddy_config:
