@@ -95,6 +95,7 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["api.parsers.DecimalJSONParser"],
     "EXCEPTION_HANDLER": "api.exceptions.exception_handler",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
@@ -108,6 +109,21 @@ REST_FRAMEWORK = {
     "NUM_PROXIES": int(env("NUM_PROXIES", "0")),
 }
 
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Fund Ledger API",
+    "DESCRIPTION": (
+        "Double-entry private-equity fund ledger. Authenticate with "
+        "`Authorization: Bearer fl_<prefix>.<secret>`. Mutating endpoints require an "
+        "`Idempotency-Key` header. Money is always a decimal string."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],  # the docs are public; the data isn't
+    "SERVE_AUTHENTICATION": [],
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SCHEMA_PATH_PREFIX": r"/api/v1",
+}
+
 if PRODUCTION:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -116,5 +132,15 @@ if PRODUCTION:
         "security.W004",  # HSTS: set by Caddy for every response
         "security.W008",  # HTTPS redirect: done by Caddy
     ]
+
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {},
+    }
+]
 
 configure_logging(json_output=env("LOG_FORMAT", "json") == "json", level=env("LOG_LEVEL", "INFO"))
