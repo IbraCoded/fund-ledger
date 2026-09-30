@@ -61,7 +61,9 @@ def apply_grants(role: str) -> None:
         sql.SQL("REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM {}").format(r),
         sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(db, r),
         sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(r),
-        sql.SQL("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {}").format(r),
+        sql.SQL("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {}").format(
+            r
+        ),
         sql.SQL("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {}").format(r),
         sql.SQL("REVOKE UPDATE, DELETE ON {} FROM {}").format(_tables(APPEND_ONLY_TABLES), r),
         sql.SQL("REVOKE INSERT, UPDATE, DELETE ON {} FROM {}").format(_tables(READ_ONLY_TABLES), r),

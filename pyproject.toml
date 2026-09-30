@@ -10,6 +10,7 @@ dependencies = [
     "django>=5.2,<5.3",
     "django-environ>=0.14.0",
     "djangorestframework>=3.16",
+    "drf-spectacular>=0.30.0",
     "fastapi>=0.141.1",
     "gunicorn>=26.2.0",
     "httpx>=0.28.1",

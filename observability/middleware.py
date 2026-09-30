@@ -20,6 +20,7 @@ class RequestIDMiddleware:
     def __call__(self, request: HttpRequest) -> HttpResponse:
         incoming = request.headers.get(self.header, "")
         request_id = incoming if _SAFE_REQUEST_ID.match(incoming) else uuid.uuid4().hex
+        request.META["REQUEST_ID"] = request_id
         structlog.contextvars.clear_contextvars()  # worker threads are reused
         structlog.contextvars.bind_contextvars(
             request_id=request_id, method=request.method, path=request.path

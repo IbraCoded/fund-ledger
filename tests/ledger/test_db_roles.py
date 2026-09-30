@@ -35,8 +35,10 @@ def test_app_role_can_do_its_whole_job(world, app_role):
     """Locks (FOR UPDATE / FOR SHARE), inserts, triggers and reads all work with least privilege."""
     with acting_as(app_role):
         post_transfer(
-            idempotency_key="as-app", legs=two_legs(world.equity, world.cash, D("10")),
-            period=world.period, transfer_type="ADJUSTMENT",
+            idempotency_key="as-app",
+            legs=two_legs(world.equity, world.cash, D("10")),
+            period=world.period,
+            transfer_type="ADJUSTMENT",
         )
         assert native_balance(world.cash.id) == D("10")
 
@@ -56,7 +58,10 @@ def test_app_role_can_do_its_whole_job(world, app_role):
     ],
 )
 def test_app_role_cannot_tamper_with_the_ledger(app_role, statement):
-    with pytest.raises(DatabaseError, match="permission denied|must be owner"), acting_as(app_role) as cursor:
+    with (
+        pytest.raises(DatabaseError, match="permission denied|must be owner"),
+        acting_as(app_role) as cursor,
+    ):
         cursor.execute(statement)
 
 
