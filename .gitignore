@@ -28,3 +28,6 @@ htmlcov/
 
 # Load tests
 loadtest/results*
+
+# Demo keys
+.demo-keys.env

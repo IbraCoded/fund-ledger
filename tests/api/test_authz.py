@@ -130,6 +130,7 @@ def test_non_members_get_404_everywhere(pe, api_for):
         ("get", f"/api/v1/accounts/{cash.id}/entries/"),
         ("get", _statement_url(pe, pe.lps[0])),
         ("post", f"/api/v1/funds/{pe.fund.id}/periods/{pe.h1.id}/close/"),
+        ("get", f"/api/v1/funds/{pe.fund.id}/periods/"),
         ("post", f"/api/v1/transfers/{call.transfer_id}/reverse/"),
     ]
     for method, url in urls:
