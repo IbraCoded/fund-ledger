@@ -29,7 +29,7 @@ jobs:
       APP_DB_PASSWORD: ci-app-password
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
       - run: uv sync --frozen
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       - name: Audit Python dependencies for known vulnerabilities
         run: |
           uv export --frozen --no-dev --no-emit-project --no-hashes --format requirements-txt -o requirements.txt
