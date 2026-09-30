@@ -1,0 +1,25 @@
+groups:
+  - name: fund-ledger
+    rules:
+      - alert: LedgerOutOfBalance
+        expr: ledger_reconciliation_imbalance != 0
+        labels: { severity: page }
+        annotations:
+          summary: "Ledger imbalance is {{ $value }}. This should be impossible: investigate now."
+      - alert: LedgerDown
+        expr: up{job="fund-ledger"} == 0
+        for: 2m
+        labels: { severity: page }
+      - alert: TransferErrors
+        expr: sum(rate(ledger_transfers_total{outcome="error"}[5m])) > 0
+        for: 5m
+        labels: { severity: ticket }
+      - alert: DeadlockRetries
+        expr: increase(ledger_db_retries_total[15m]) > 0
+        labels: { severity: ticket }
+        annotations:
+          summary: "Deadlock retries observed: a code path may be locking out of order."
+      - alert: SlowTransfers
+        expr: histogram_quantile(0.99, sum by (le) (rate(ledger_transfer_duration_seconds_bucket[5m]))) > 0.5
+        for: 10m
+        labels: { severity: ticket }
