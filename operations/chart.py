@@ -8,7 +8,7 @@ from ledger.models import Account, AccountType
 
 def account_code(account_type: str, *, currency: str, lp: LimitedPartner | None = None) -> str:
     if account_type == AccountType.LP_CAPITAL:
-        assert lp is not None
+        assert lp is not None  # noqa: S101 (assertion is valid here)
         return f"LP-{lp.id.hex}"
     if account_type in (AccountType.CASH, AccountType.INVESTMENT):
         return f"{account_type}-{currency}"

@@ -51,8 +51,12 @@ target-version = "py312"
 extend-exclude = ["*/migrations/*"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "DJ", "SIM"]
+select = ["E", "F", "I", "B", "UP", "DJ", "SIM", "S"]
 ignore = ["E501", "DJ008"]   # formatter owns line length; __str__ not required on every model
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "S603", "S607", "S608"]
+"loadtest/**" = ["S311"]
 
 [tool.mypy]
 python_version = "3.12"

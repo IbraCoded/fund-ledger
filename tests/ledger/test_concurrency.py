@@ -20,7 +20,7 @@ def test_no_account_goes_negative_under_concurrent_load(world):
     # Low balances on purpose: accounts must hover near zero for the race to be observable.
     fund_accounts(world.period, world.equity, accounts, D("30"))
 
-    rng = random.Random(1234)
+    rng = random.Random(1234)  # noqa: S311
     pairs = [rng.sample(accounts, 2) for _ in range(500)]
 
     def transfer(i: int) -> None:

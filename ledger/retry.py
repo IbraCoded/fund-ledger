@@ -31,5 +31,5 @@ def with_deadlock_retry[T](
                 raise
             DB_RETRIES.labels(sqlstate=sqlstate).inc()
             log.warning("db.retry", sqlstate=sqlstate, attempt=attempt)
-            time.sleep(base_delay * (2**attempt) * random.random())
+            time.sleep(base_delay * (2**attempt) * random.random())  # noqa: S311 (jittered exponential backoff)
     raise AssertionError("unreachable")
