@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.0",
     "asyncpg>=0.31.0",
-    "django>=5.2,<5.3",
+    "django>=5.2,<6.2",
     "django-environ>=0.14.0",
     "djangorestframework>=3.16",
     "drf-spectacular>=0.30.0",
